@@ -16,14 +16,13 @@
 import pymongo
 
 from time import time
-import traceback
 
 class Queue(object):
 
-    def __init__(self, collection, timeout=300, max_attempts=3):
+    def __init__(self, collection):
       self.collection = collection
-      self.timeout = timeout
-      self.max_attempts = max_attempts
+      #self.timeout = timeout
+      #self.max_attempts = max_attempts
 
     def close(self):
       # Close the in memory queue connection.
@@ -37,43 +36,48 @@ class Queue(object):
       # Total size of the queue
       return self.collection.count()
 
-    def count(self, query = { "_reserved": { '$exists': True } }):
+    def count(self, query = { "_r": { '$exists': True } }):
       # By default, the surprising number of reserved tasks in the queue
       return self.collection.find(query).count()
 
-    def add(self, task = {}, opts = {"priority": int(time()), "attempts": 0, "errors" : []}):
+    def add(self, task = {}, opts = {"_p": int(time()), "_a": 0, "errors" : []}):
       task.update(opts)
       self.collection.insert(task)
 
-    def reserve(self, opts = {"priority": int(time()), "attempts": 0, "errors" : []}):
+    def reserve(self, priority = int(time())):
       result = self.collection.find_and_modify(
           query = {
-            "priority": { '$lte': opts["priority"] },
-            "_reserved": { '$exists': False },
+            "_p": { '$lte': priority },
+            "_r": { '$exists': False },
           },
-          sort = { "priority": 1 },
-          update = { '$set': { "_reserved": int(time()) } }
+          sort   = { "_p": 1 },
+          update = { '$set': { "_r": int(time()) } }
       )
       return result
 
-    def reschedule(self, task, opts = {"priority": -1, "attempts": -1, "errors" : []}):
-      if opts["priority"] < 0:
-        opts["priority"] = task["priority"]
-      if opts["attempts"] < 0:
-        opts["attempts"] = task["attempts"] + 1
+    def reschedule(self, task, opts = {"_p": -1, "_a": -1}):
+      if opts["_p"] < 0:
+        opts["_p"] = task["_p"]
+      if opts["_a"] < 0:
+        opts["_a"] = task["_a"] + 1
       self.collection.update(
         { "_id": task["_id"] },
         {
-          '$unset': { "_reserved": 0 },
-          '$set'  : { "priority": opts["priority"], "attempts": opts["attempts"] }
+          '$unset': { "_r": 0 },
+          '$set'  : { "_p": opts["_p"], "_a": opts["_a"] }
         })
-
+        
+    def error(self, task, message):
+      self.collection.update(
+        { "_id": task["_id"] },
+        { '$push': { "errors": message } })
+        
     def remove(self, task):
-      self.collection.remove( { "_id": task["_id"] } )
+      self.collection.remove({ "_id": task["_id"] })
 
-    def time_out(self, delay = 120):
+    def timeout(self, delay = 120):
       cutoff = int(time()) - delay
       self.collection.update(
-        { "_reserved": { '$lt': cutoff } },
-        { '$unset': { "_reserved": 0 } },
+        { "_r": { '$lt': cutoff } },
+        { '$unset': { "_r": 0 } },
         safe = True, multi = True)
