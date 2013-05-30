@@ -46,31 +46,31 @@ def message_callback(session, message):
       "message" : msg
     })
 
-    #send(sender, gcm_json.encode('utf-8'))
-
 def send(to, message):
   template = ("<message from=\"{0}\" to=\"{1}@{2}/{3}\" type=\"chat\"><html xmlns=\"http://jabber.org/protocol/xhtml-im\"><body>{4}</body></html></message>")
   connection.send(xmpp.protocol.Message(
     node=template.format(connection.Bind.bound[0], to["user"], to["domain"], to["ressource"], str(message))))
 
-jid = xmpp.JID(user)
+def post(out):
+  if out != None:
+    if out["mime"] == "application/json":
+      send(out["sender"], json.dumps(out["message"]))
+    else:
+      send(out["sender"], out["message"].encode('utf-8'))
+    outbox.remove(out)
+
+JID = xmpp.JID(user)
 connection = xmpp.Client(server, debug=[]) #
 connection.connect()
-auth = connection.auth(jid.getNode(), password, ressource)
+auth = connection.auth(JID.getNode(), password, ressource)
 if not auth:
   print 'Authentication failed!'
   sys.exit(1)
 
 connection.RegisterHandler('message', message_callback)
-
 connection.sendInitPresence()
 
-i = 1
 while True:
   connection.Process(1)
-  out = outbox.reserve()
-  if out != None:
-    send(out["sender"],json.dumps(out["message"]))
-    outbox.remove(out)
-  i = i + 1
+  post(outbox.reserve())
 	
