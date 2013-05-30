@@ -21,7 +21,7 @@ try:
   password  = cid["password"]
   server    = cid["server"]
   ressource = cid["ressource"]
-  
+  print server
 except:
   print "Error trying to read collection:" + sys.exc_info()[0]
   sys.exit(1)
@@ -60,7 +60,7 @@ def post(out):
     outbox.remove(out)
 
 JID = xmpp.JID(user)
-connection = xmpp.Client(server, debug=[]) #
+connection = xmpp.Client(server) #, debug=[]
 connection.connect()
 auth = connection.auth(JID.getNode(), password, ressource)
 if not auth:
