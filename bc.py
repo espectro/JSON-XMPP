@@ -28,9 +28,18 @@ except:
 # Unique message id for downstream messages
 sent_message_id = 0
 
-def message_callback(session, message):
-    global sent_message_id
+def recipient(uri):
+    try:
+        u = re.search('(.+)@(.+)/(.+)', uri) 
+        result = { "user" : u.group(1), "domain": u.group(2), "ressource": u.group(3) }
+    except:
+        u = re.search('(.+)@(.+)', uri)
+        result = { "user" : u.group(1), "domain": u.group(2) }
+    return result
+    
+def receive(session, message):
     content = message.getTags('body')
+    
     if len(content) > 0:
         try:
             msg = json.loads(content[0].getData())
@@ -38,24 +47,31 @@ def message_callback(session, message):
         except:
             msg = content[0].getData()
             mime = 'text/plain'
-        m = re.search('(.+)@(.+)/(.+)', str(message.getAttr('from'))) 
-        inbox.add( {
-          "sender"  : { "user" : m.group(1), "domain": m.group(2), "ressource": m.group(3) },
-          "mime"    : mime,
-          "message" : msg
+        
+        inbox.add({
+          "message": {
+            "from"    : recipient(str(message.getAttr('from'))),
+            "to"      : recipient(str(message.getAttr('to'))),
+            "id"      : str(message.getAttr('id')),
+            "mime"    : mime,
+            "content" : msg
+          }
         })
 
 def send(to, message):
-    template = ("<message from=\"{0}\" to=\"{1}@{2}/{3}\" type=\"chat\"><html xmlns=\"http://jabber.org/protocol/xhtml-im\"><body>{4}</body></html></message>")
+    global sent_message_id
+    sent_message_id += 1
+    template = ("<message from=\"{0}\" to=\"{1}@{2}\" type=\"chat\" id=\"{3}\"><html xmlns=\"http://jabber.org/protocol/xhtml-im\"><body>{4}</body></html></message>")
     connection.send(xmpp.protocol.Message(
-      node=template.format(connection.Bind.bound[0], to["user"], to["domain"], to["ressource"], str(message))))
+      node=template.format(connection.Bind.bound[0], to["user"], to["domain"], sent_message_id, str(message))))
 
 def post(out):
     if out != None:
-        if out["mime"] == "application/json":
-            send(out["sender"], json.dumps(out["message"]))
+        message = out["message"]
+        if message["mime"] == "application/json":
+            send(message["to"], json.dumps(message["content"]))
         else:
-            send(out["sender"], out["message"].encode('utf-8'))
+            send(message["to"], message["content"].encode('utf-8'))
         outbox.remove(out)
 
 def bot_loop(connection):
@@ -76,7 +92,7 @@ def reconnect(connection):
     connection.reconnectAndReauth()
 
 JID = xmpp.JID(user)
-connection = xmpp.Client(server) #, debug=[]
+connection = xmpp.Client(server, debug=[]) #
 conres = connection.connect()
 if not conres:
     print 'Cannot connect to server'
@@ -87,6 +103,6 @@ if not auth:
     sys.exit(1)
 
 connection.RegisterDisconnectHandler(reconnect)
-connection.RegisterHandler('message', message_callback)
+connection.RegisterHandler('message', receive)
 connection.sendInitPresence()
 bot_loop(connection)
