@@ -21,9 +21,8 @@ try:
     password  = cid["password"]
     server    = cid["server"]
     ressource = cid["ressource"]
-    print server
 except:
-    print "Error trying to read collection:" + sys.exc_info()[0]
+    print "Error trying to read collection:", sys.exc_info()[0]
     sys.exit(1)
 
 # Unique message id for downstream messages
@@ -53,14 +52,14 @@ def send(to, message):
 
 def post(out):
     if out != None:
-      if out["mime"] == "application/json":
-          send(out["sender"], json.dumps(out["message"]))
-      else:
-          send(out["sender"], out["message"].encode('utf-8'))
-      outbox.remove(out)
+        if out["mime"] == "application/json":
+            send(out["sender"], json.dumps(out["message"]))
+        else:
+            send(out["sender"], out["message"].encode('utf-8'))
+        outbox.remove(out)
 
 def bot_loop(connection):
-    while 1:
+    while True:
         try:
             while connection.Process(1): 
                 post(outbox.reserve())
@@ -78,7 +77,6 @@ def reconnect(connection):
 
 JID = xmpp.JID(user)
 connection = xmpp.Client(server) #, debug=[]
-connection.connect()
 conres = connection.connect()
 if not conres:
     print 'Cannot connect to server'
