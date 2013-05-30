@@ -17,16 +17,10 @@ import pymongo
 
 from time import time
 
-class Queue(object):
+class queue(object):
 
     def __init__(self, collection):
       self.collection = collection
-      #self.timeout = timeout
-      #self.max_attempts = max_attempts
-
-    def close(self):
-      # Close the in memory queue connection.
-      self.collection.connection.close()
 
     def clear(self):
       # Clear the queue.
@@ -40,9 +34,10 @@ class Queue(object):
       # By default, the surprising number of reserved tasks in the queue
       return self.collection.find(query).count()
 
-    def add(self, task = {}, opts = {"_p": int(time()), "_a": 0, "errors" : []}):
+    def add(self, task = {}, opts = {"_p": int(time()), "_a": 0, "_e" : []}):
       task.update(opts)
       self.collection.insert(task)
+      return task
 
     def reserve(self, priority = int(time())):
       result = self.collection.find_and_modify(
@@ -55,25 +50,20 @@ class Queue(object):
       )
       return result
 
-    def reschedule(self, task, opts = {"_p": -1, "_a": -1}):
-      if opts["_p"] < 0:
-        opts["_p"] = task["_p"]
-      if opts["_a"] < 0:
-        opts["_a"] = task["_a"] + 1
-      self.collection.update(
+    def reschedule(self, task):
+      return self.collection.update(
         { "_id": task["_id"] },
-        {
-          '$unset': { "_r": 0 },
-          '$set'  : { "_p": opts["_p"], "_a": opts["_a"] }
-        })
+        { '$unset': { "_r": 0 },
+          '$set'  : { "_p": task["_p"],
+                      "_a": int(task["_a"] + 1) }})
         
     def error(self, task, message):
-      self.collection.update(
+      return self.collection.update(
         { "_id": task["_id"] },
-        { '$push': { "errors": message } })
+        { '$push': { "_e": message } })
         
     def remove(self, task):
-      self.collection.remove({ "_id": task["_id"] })
+      return self.collection.remove({ "_id": task["_id"] })
 
     def timeout(self, delay = 120):
       cutoff = int(time()) - delay

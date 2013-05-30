@@ -1,18 +1,18 @@
 import pymongo
-from mongoqueue import Queue
+from mongoqueue import queue
 
 connection = pymongo.MongoClient("mongodb://localhost")
 db = connection.xmpp
-tasks = db.queue
 
-q = Queue(tasks)
-
-q.add({"content": {"key":111}})
+q = queue(db.queue)
+q.clear()
+print q.add({"content": {"key":111}})
 q.add({"content": {"key":222}})
 q.add({"content": {"key":333}})
 
 task = q.reserve()
-q.reschedule(task)
+q.error(task, {"text":"qdfwsdfsd", "pid":8888, "code":-123})
+print q.reschedule(task)
 
 task = q.reserve()
 q.remove(task)
@@ -20,7 +20,7 @@ q.remove(task)
 q.reserve()
 q.reserve()
 
-q.time_out()
+q.timeout(-1)
 
 print q.size()
 print q.count()
