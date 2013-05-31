@@ -3,27 +3,46 @@
 
 import sys, re, json, xmpp, pymongo
 from mongoqueue import queue
+from optparse import OptionParser
 
-connection = pymongo.MongoClient("mongodb://localhost")
-db = connection.xmpp           # attach to db
-cnf = db.config                # specify the colllection
+opt = OptionParser()
+opt.add_option("-c", "--config", dest="config",
+                  help="config file", metavar="CNF")
 
-inbox  = queue(db.inbox)
-outbox = queue(db.outbox)
+(options, args) = opt.parse_args()
 
-inbox.clear()
-outbox.timeout(-1)
+if options.config == None:
+    print "Error to read config file"
+    sys.exit(1)
 
 try:
-    cid = cnf.find_one()
+    config = json.load(open(options.config, 'r'))
+except:
+    print sys.exc_info()[1]
+    sys.exit(1)
+    
+print "Start as ", config["user"]
+
+connection = pymongo.MongoClient("mongodb://localhost")
+db  = connection.xmpp           # attach to db
+cnf = db.config                 # specify the colllection
+
+try:
+    cid = cnf.find_one({"user": config["user"]})
   
     user      = cid["user"]
     password  = cid["password"]
     server    = cid["server"]
     ressource = cid["ressource"]
 except:
-    print "Error trying to read collection:", sys.exc_info()[0]
+    print sys.exc_info()
     sys.exit(1)
+
+inbox  = queue(db.inbox)
+outbox = queue(db[cid["outbox"]])
+
+inbox.clear()
+outbox.timeout(-1)
 
 # Unique message id for downstream messages
 sent_message_id = 0
@@ -38,22 +57,22 @@ def recipient(uri):
     return result
     
 def receive(session, message):
-    content = message.getTags('body')
-    
-    if len(content) > 0:
+    content = message.getBody()
+    if content != None:
         try:
-            msg = json.loads(content[0].getData())
+            msg = json.loads(content)
             mime = 'application/json'
         except:
-            msg = content[0].getData()
+            msg = content
             mime = 'text/plain'
         
         inbox.add({
           "message": {
-            "from"    : recipient(str(message.getAttr('from'))),
-            "to"      : recipient(str(message.getAttr('to'))),
-            "id"      : str(message.getAttr('id')),
+            "from"    : recipient(str(message.getFrom())),
+            "to"      : recipient(str(message.getTo())),
+            "id"      : str(message.getID()),
             "mime"    : mime,
+            "type"    : message.getType(),
             "content" : msg
           }
         })
@@ -61,7 +80,7 @@ def receive(session, message):
 def send(to, message):
     global sent_message_id
     sent_message_id += 1
-    template = ("<message from=\"{0}\" to=\"{1}@{2}\" type=\"chat\" id=\"{3}\"><html xmlns=\"http://jabber.org/protocol/xhtml-im\"><body>{4}</body></html></message>")
+    template = ("<message from=\"{0}\" to=\"{1}@{2}\" type=\"chat\" id=\"{3}\"><body>{4}</body></message>")
     connection.send(xmpp.protocol.Message(
       node=template.format(connection.Bind.bound[0], to["user"], to["domain"], sent_message_id, str(message))))
 
@@ -92,7 +111,7 @@ def reconnect(connection):
     connection.reconnectAndReauth()
 
 JID = xmpp.JID(user)
-connection = xmpp.Client(server, debug=[]) #
+connection = xmpp.Client(server) #, debug=[]
 conres = connection.connect()
 if not conres:
     print 'Cannot connect to server'
