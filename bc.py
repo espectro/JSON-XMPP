@@ -57,13 +57,13 @@ def recipient(uri):
     return result
     
 def receive(session, message):
-    content = message.getBody()
-    if content != None:
+    body = message.getBody()
+    if body != None:
         try:
-            msg = json.loads(content)
+            content = json.loads(body)
             mime = 'application/json'
         except:
-            msg = content
+            content = body
             mime = 'text/plain'
         
         inbox.add({
@@ -73,16 +73,21 @@ def receive(session, message):
             "id"      : str(message.getID()),
             "mime"    : mime,
             "type"    : message.getType(),
-            "content" : msg
+            "content" : content
           }
         })
 
 def send(to, message):
     global sent_message_id
     sent_message_id += 1
-    template = ("<message from=\"{0}\" to=\"{1}@{2}\" type=\"chat\" id=\"{3}\"><body>{4}</body></message>")
+    template = ("<message from=\"{msg_from}\" to=\"{user}@{domain}\" type=\"chat\" id=\"{msg_id}\"><body>{body}</body>\n<html xmlns=\"http://jabber.org/protocol/xhtml-im\"><body xmlns=\"http://www.w3.org/1999/xhtml\">{body}</body></html></message>")
     connection.send(xmpp.protocol.Message(
-      node=template.format(connection.Bind.bound[0], to["user"], to["domain"], sent_message_id, str(message))))
+      node = template.format(
+        msg_from = connection.Bind.bound[0], 
+        user   = to["user"], 
+        domain = to["domain"], 
+        msg_id = sent_message_id, 
+        body   = str(message))))
 
 def post(out):
     if out != None:
