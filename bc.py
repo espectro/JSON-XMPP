@@ -26,10 +26,6 @@ parser.add_argument("-v", "--verbose", dest='verbose',
                     action="store_true")
 options = parser.parse_args()
 
-if options.config == None:
-    print "Error to read config file"
-    sys.exit(1)
-
 try:
     config = json.load(open(options.config, 'r'))
 except:
