@@ -1,15 +1,30 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import sys, re, json, xmpp, pymongo
+import sys
+import re
+
+import json
+import xmpp
+import pymongo
+import argparse
+
 from mongoqueue import queue
-from optparse import OptionParser
 
-opt = OptionParser()
-opt.add_option("-c", "--config", dest="config",
-                  help="config file", metavar="CNF")
+# Unique message id for downstream messages
+SENT_MESSAGE_ID = 0
+PORT = 5222
 
-(options, args) = opt.parse_args()
+parser = argparse.ArgumentParser('mongo-xmpp-bot')
+parser.add_argument("-c", "--config", dest='config', 
+                    required=True, help="Config is json file which contains username in mongodb")
+parser.add_argument("-f", "--force", dest='force', 
+                    help='Force parameter will connect bot directly to the server, without pydns lookups',
+                    action="store_true")
+parser.add_argument("-v", "--verbose", dest='verbose', 
+                    help='Enable debugging on connection',
+                    action="store_true")
+options = parser.parse_args()
 
 if options.config == None:
     print "Error to read config file"
@@ -44,8 +59,6 @@ outbox = queue(db[cid["outbox"]])
 inbox.clear()
 outbox.timeout(-1)
 
-# Unique message id for downstream messages
-sent_message_id = 0
 
 def recipient(uri):
     try:
@@ -78,15 +91,15 @@ def receive(session, message):
         })
 
 def send(to, message):
-    global sent_message_id
-    sent_message_id += 1
+    global SENT_MESSAGE_ID
+    SENT_MESSAGE_ID += 1
     template = ("<message from=\"{msg_from}\" to=\"{user}@{domain}\" type=\"chat\" id=\"{msg_id}\"><body>{body}</body>\n<html xmlns=\"http://jabber.org/protocol/xhtml-im\"><body xmlns=\"http://www.w3.org/1999/xhtml\">{body}</body></html></message>")
     connection.send(xmpp.protocol.Message(
       node = template.format(
         msg_from = connection.Bind.bound[0], 
         user   = to["user"], 
         domain = to["domain"], 
-        msg_id = sent_message_id, 
+        msg_id = SENT_MESSAGE_ID, 
         body   = str(message))))
 
 def post(out):
@@ -116,8 +129,20 @@ def reconnect(connection):
     connection.reconnectAndReauth()
 
 JID = xmpp.JID(user)
-connection = xmpp.Client(server) #, debug=[]
-conres = connection.connect()
+if options.force:
+    domain = user.split('@')[1]
+    server = (str(server), PORT)
+else:
+    domain = server
+    server = ''
+
+if options.verbose:
+    verbose_con = ['always']
+else:
+    verbose_con = ()
+
+connection = xmpp.Client(str(domain), debug=verbose_con)
+conres = connection.connect(server)
 if not conres:
     print 'Cannot connect to server'
     sys.exit(1)
