@@ -14,6 +14,7 @@ from mongoqueue import queue
 # Unique message id for downstream messages
 SENT_MESSAGE_ID = 0
 PORT = 5222
+VERBOSE_CON = ()
 
 parser = argparse.ArgumentParser('mongo-xmpp-bot')
 parser.add_argument("-c", "--config", dest='config', 
@@ -48,6 +49,16 @@ try:
 except:
     print sys.exc_info()
     sys.exit(1)
+
+if options.force:
+    domain = user.split('@')[1]
+    server = (str(server), PORT)
+else:
+    domain = server
+    server = ''
+
+if options.verbose:
+    VERBOSE_CON = ['always']
 
 inbox  = queue(db.inbox)
 outbox = queue(db[cid["outbox"]])
@@ -125,25 +136,11 @@ def reconnect(connection):
     connection.reconnectAndReauth()
 
 JID = xmpp.JID(user)
-if options.force:
-    domain = user.split('@')[1]
-    server = (str(server), PORT)
-else:
-    domain = server
-    server = ''
-
-if options.verbose:
-    verbose_con = ['always']
-else:
-    verbose_con = ()
-
-connection = xmpp.Client(str(domain), debug=verbose_con)
-conres = connection.connect(server)
-if not conres:
+connection = xmpp.Client(str(domain), debug=VERBOSE_CON)
+if connection.connect(server) == '':
     print 'Cannot connect to server'
     sys.exit(1)
-auth = connection.auth(JID.getNode(), password, ressource)
-if not auth:
+if connection.auth(JID.getNode(), password, ressource) == None:
     print 'Authentication failed!'
     sys.exit(1)
 
