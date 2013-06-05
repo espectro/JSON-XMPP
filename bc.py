@@ -19,9 +19,6 @@ VERBOSE_CON = ()
 parser = argparse.ArgumentParser('mongo-xmpp-bot')
 parser.add_argument("-c", "--config", dest='config', 
                     required=True, help="Config is json file which contains username in mongodb")
-parser.add_argument("-f", "--force", dest='force', 
-                    help='Force parameter will connect bot directly to the server, without pydns lookups',
-                    action="store_true")
 parser.add_argument("-v", "--verbose", dest='verbose', 
                     help='Enable debugging on connection',
                     action="store_true")
@@ -49,13 +46,6 @@ try:
 except:
     print sys.exc_info()
     sys.exit(1)
-
-if options.force:
-    domain = user.split('@')[1]
-    server = (str(server), PORT)
-else:
-    domain = server
-    server = ''
 
 if options.verbose:
     VERBOSE_CON = ['always']
@@ -100,7 +90,10 @@ def receive(session, message):
 def send(to, message):
     global SENT_MESSAGE_ID
     SENT_MESSAGE_ID += 1
-    template = ("<message from=\"{msg_from}\" to=\"{user}@{domain}\" type=\"chat\" id=\"{msg_id}\"><body>{body}</body>\n<html xmlns=\"http://jabber.org/protocol/xhtml-im\"><body xmlns=\"http://www.w3.org/1999/xhtml\">{body}</body></html></message>")
+    template = ("<message from=\"{msg_from}\" \
+                to=\"{user}@{domain}\" type=\"chat\" \
+                id=\"{msg_id}\"><body>{body}</body>\n<html xmlns=\"http://jabber.org/protocol/xhtml-im\"> \
+                <body xmlns=\"http://www.w3.org/1999/xhtml\">{body}</body></html></message>")
     connection.send(xmpp.protocol.Message(
       node = template.format(
         msg_from = connection.Bind.bound[0], 
@@ -136,8 +129,8 @@ def reconnect(connection):
     connection.reconnectAndReauth()
 
 JID = xmpp.JID(user)
-connection = xmpp.Client(str(domain), debug=VERBOSE_CON)
-if connection.connect(server) == '':
+connection = xmpp.Client(JID.getDomain(), debug=VERBOSE_CON)
+if connection.connect((server,PORT)) == '':
     print 'Cannot connect to server'
     sys.exit(1)
 if connection.auth(JID.getNode(), password, ressource) == None:
