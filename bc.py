@@ -56,7 +56,6 @@ outbox = queue(db[cid["outbox"]])
 inbox.clear()
 outbox.timeout(-1)
 
-
 def recipient(uri):
     try:
         u = re.search('(.+)@(.+)/(.+)', uri) 
@@ -119,14 +118,6 @@ def bot_loop(connection):
             connection.disconnect()
         except KeyboardInterrupt:
             sys.exit(0)
-        #except IOError:
-        except:
-            connection.reconnectAndReauth()
-            connection.sendInitPresence()
-            bot_loop(connection)
-
-def reconnect(connection):
-    connection.reconnectAndReauth()
 
 JID = xmpp.JID(user)
 connection = xmpp.Client(JID.getDomain(), debug=VERBOSE_CON)
@@ -137,7 +128,7 @@ if connection.auth(JID.getNode(), password, ressource) == None:
     print 'Authentication failed!'
     sys.exit(1)
 
-connection.RegisterDisconnectHandler(reconnect)
+connection.RegisterDisconnectHandler(connection.reconnectAndReauth())
 connection.RegisterHandler('message', receive)
 connection.sendInitPresence()
 bot_loop(connection)
