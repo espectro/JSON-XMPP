@@ -14,21 +14,15 @@ from mongoqueue import queue
 # Unique message id for downstream messages
 SENT_MESSAGE_ID = 0
 PORT = 5222
+VERBOSE_CON = ()
 
 parser = argparse.ArgumentParser('mongo-xmpp-bot')
 parser.add_argument("-c", "--config", dest='config', 
                     required=True, help="Config is json file which contains username in mongodb")
-parser.add_argument("-f", "--force", dest='force', 
-                    help='Force parameter will connect bot directly to the server, without pydns lookups',
-                    action="store_true")
 parser.add_argument("-v", "--verbose", dest='verbose', 
                     help='Enable debugging on connection',
                     action="store_true")
 options = parser.parse_args()
-
-if options.config == None:
-    print "Error to read config file"
-    sys.exit(1)
 
 try:
     config = json.load(open(options.config, 'r'))
@@ -53,12 +47,14 @@ except:
     print sys.exc_info()
     sys.exit(1)
 
+if options.verbose:
+    VERBOSE_CON = ['always']
+
 inbox  = queue(db.inbox)
 outbox = queue(db[cid["outbox"]])
 
 inbox.clear()
 outbox.timeout(-1)
-
 
 def recipient(uri):
     try:
@@ -93,7 +89,10 @@ def receive(session, message):
 def send(to, message):
     global SENT_MESSAGE_ID
     SENT_MESSAGE_ID += 1
-    template = ("<message from=\"{msg_from}\" to=\"{user}@{domain}\" type=\"chat\" id=\"{msg_id}\"><body>{body}</body>\n<html xmlns=\"http://jabber.org/protocol/xhtml-im\"><body xmlns=\"http://www.w3.org/1999/xhtml\">{body}</body></html></message>")
+    template = ("<message from=\"{msg_from}\" \
+                to=\"{user}@{domain}\" type=\"chat\" \
+                id=\"{msg_id}\"><body>{body}</body>\n<html xmlns=\"http://jabber.org/protocol/xhtml-im\"> \
+                <body xmlns=\"http://www.w3.org/1999/xhtml\">{body}</body></html></message>")
     connection.send(xmpp.protocol.Message(
       node = template.format(
         msg_from = connection.Bind.bound[0], 
@@ -119,39 +118,17 @@ def bot_loop(connection):
             connection.disconnect()
         except KeyboardInterrupt:
             sys.exit(0)
-        #except IOError:
-        except:
-            connection.reconnectAndReauth()
-            connection.sendInitPresence()
-            bot_loop(connection)
-
-def reconnect(connection):
-    connection.reconnectAndReauth()
 
 JID = xmpp.JID(user)
-if options.force:
-    domain = user.split('@')[1]
-    server = (str(server), PORT)
-else:
-    domain = server
-    server = ''
-
-if options.verbose:
-    verbose_con = ['always']
-else:
-    verbose_con = ()
-
-connection = xmpp.Client(str(domain), debug=verbose_con)
-conres = connection.connect(server)
-if not conres:
+connection = xmpp.Client(JID.getDomain(), debug=VERBOSE_CON)
+if connection.connect((server,PORT)) == '':
     print 'Cannot connect to server'
     sys.exit(1)
-auth = connection.auth(JID.getNode(), password, ressource)
-if not auth:
+if connection.auth(JID.getNode(), password, ressource) == None:
     print 'Authentication failed!'
     sys.exit(1)
 
-connection.RegisterDisconnectHandler(reconnect)
+connection.RegisterDisconnectHandler(connection.reconnectAndReauth())
 connection.RegisterHandler('message', receive)
 connection.sendInitPresence()
 bot_loop(connection)
