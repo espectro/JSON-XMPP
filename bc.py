@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 import sys
 import re
 
@@ -131,4 +129,6 @@ if connection.auth(JID.getNode(), password, ressource) == None:
 connection.RegisterDisconnectHandler(connection.reconnectAndReauth())
 connection.RegisterHandler('message', receive)
 connection.sendInitPresence()
+room = "room2@muc.kp.local/pbot"
+connection.send(xmpp.Presence(to=room))
 bot_loop(connection)
