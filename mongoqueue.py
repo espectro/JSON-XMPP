@@ -14,60 +14,84 @@
 
 
 import pymongo
-
+from pymongo.errors import OperationFailure
 from time import time
 
 class Queue(object):
+    def __init__(self, collection, log):
+        self.log = log
+        self.collection = collection
 
-    def __init__(self, collection):
-      self.collection = collection
 
     def clear(self):
-      # Clear the queue.
-      return self.collection.drop()
-      
+        # Clear the queue.
+        return self.collection.drop()
+
+
     def size(self):
-      # Total size of the queue
-      return self.collection.count()
+        # Total size of the queue
+        return self.collection.count()
+
 
     def count(self, query = { "_r": { '$exists': True } }):
-      # By default, the surprising number of reserved tasks in the queue
-      return self.collection.find(query).count()
+        # By default, the surprising number of reserved tasks in the queue
+        return self.collection.find(query).count()
+
 
     def add(self, task = {}, opts = {"_p": int(time()), "_a": 0, "_e" : []}):
-      task.update(opts)
-      self.collection.insert(task)
-      return task
+        task.update(opts)
+        self.collection.insert(task)
+        return task
 
-    def reserve(self, priority = int(time())):
-      result = self.collection.find_and_modify(
-          query = {
-            "_p": { '$lte': priority },
-            "_r": { '$exists': False },
-          },
-          sort   = { "_p": 1 },
-          update = { '$set': { "_r": int(time()) } }
-      )
-      return result
+
+    def reserve(self, priority = -1):
+        if priority == -1:
+            priority = int(time())
+        result = None
+        try:
+            result = self.collection.find_and_modify(
+                query = {
+                  "_p": {'$lte': priority},
+                  "_r": {'$exists': False}
+                },
+                sort   = {"_p": 1},
+                update = {'$set': {"_r": int(time())}}
+            )
+            self.log.debug(result)
+        except OperationFailure, e:
+            self.log.debug(e)
+        return result
+
 
     def reschedule(self, task):
-      return self.collection.update(
-        { "_id": task["_id"] },
-        { '$unset': { "_r": 0 },
-          '$set'  : { "_p": task["_p"],
-                      "_a": int(task["_a"] + 1) }})
-        
+        return self.collection.update(
+            {"_id": task["_id"]},
+            {
+                '$unset': {"_r": 0},
+                '$set'  : {
+                    "_p": task["_p"],
+                    "_a": int(task["_a"] + 1)
+                }
+            }
+        )
+
+
     def error(self, task, message):
-      return self.collection.update(
-        { "_id": task["_id"] },
-        { '$push': { "_e": message } })
-        
+        return self.collection.update(
+            {"_id": task["_id"] },
+            {'$push': { "_e": message } }
+        )
+
+
     def remove(self, task):
-      return self.collection.remove({ "_id": task["_id"] })
+        return self.collection.remove({ "_id": task["_id"] })
+
 
     def timeout(self, delay = 120):
-      cutoff = int(time()) - delay
-      self.collection.update(
-        { "_r": { '$lt': cutoff } },
-        { '$unset': { "_r": 0 } },
-        safe = True, multi = True)
+        cutoff = int(time()) - delay
+        self.collection.update(
+            {"_r": {'$lt': cutoff}},
+            {'$unset':{"_r": 0}},
+            safe = True,
+            multi = True
+        )

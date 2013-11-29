@@ -26,6 +26,7 @@ from mongoqueue  import Queue
 from argparse    import ArgumentParser
 from configobj   import ConfigObj
 from validate    import Validator
+from time import time
 
 SENT_MESSAGE_ID = 0
 
@@ -47,8 +48,8 @@ class JBot(object):
 
 
     def _init(self, debug):
-        self._inbox = Queue(self.store.xmpp.inbox)
-        self._outbox = Queue(self.store.xmpp[self.config["xmpp"]["user"]])
+        self._inbox = Queue(self.store.xmpp.inbox, self.log)
+        self._outbox = Queue(self.store.xmpp[self.config["xmpp"]["user"]], self.log)
         #self._inbox.clear()
         self._outbox.timeout(-1)
         
@@ -85,6 +86,8 @@ class JBot(object):
 
 
     def recipient(self, uri):
+        if type(uri) == dict:
+            return uri
         try:
             u = re.search('(.+)@(.+)/(.+)', uri) 
             result = { "user" : u.group(1), "domain": u.group(2), "ressource": u.group(3) }
@@ -136,6 +139,7 @@ class JBot(object):
 
 
     def post(self, out):
+        self.log.debug('q')
         if out != None:
             message = out["message"]
             self.log.debug('post message from:%s to:%s' % (message["from"], message["to"]))
