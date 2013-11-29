@@ -27,6 +27,7 @@ from argparse    import ArgumentParser
 from configobj   import ConfigObj
 from validate    import Validator
 
+SENT_MESSAGE_ID = 0
 
 class JBot(object):
     def __init__(self, config, debug):
@@ -47,7 +48,7 @@ class JBot(object):
 
     def _init(self, debug):
         self._inbox = Queue(self.store.xmpp.inbox)
-        self._outbox = Queue(self.store.xmpp.db[self.config["xmpp"]["user"]])
+        self._outbox = Queue(self.store.xmpp[self.config["xmpp"]["user"]])
         #self._inbox.clear()
         self._outbox.timeout(-1)
         
@@ -103,7 +104,7 @@ class JBot(object):
                 content = body
                 mime = 'text/plain'
             
-            inbox.add({
+            self._inbox.add({
                 "message": {
                     "from"    : self.recipient(str(message.getFrom())),
                     "to"      : self.recipient(str(message.getTo())),
@@ -125,10 +126,10 @@ class JBot(object):
         )
         self.connection.send(xmpp.protocol.Message(
             node = template.format(
-                msg_from = connection.Bind.bound[0], 
+                msg_from = self.connection.Bind.bound[0], 
                 user   = to["user"], 
                 domain = to["domain"], 
-                msg_id = SENT_MESSAGE_ID, 
+                msg_id = int(SENT_MESSAGE_ID), 
                 body   = str(message)
             )
         ))
@@ -137,14 +138,15 @@ class JBot(object):
     def post(self, out):
         if out != None:
             message = out["message"]
+            self.log.debug('post message from:%s to:%s' % (message["from"], message["to"]))
             if message["mime"] == "application/json":
-                self.send(message["to"], json.dumps(message["content"]))
+                self.send(self.recipient(message["to"]), json.dumps(message["content"]))
             else:
-                self.send(message["to"], message["content"].encode('utf-8'))
+                self.send(self.recipient(message["to"]), message["content"].encode('utf-8'))
             self._outbox.remove(out)
 
 
-    def room(self, room ="room2@muc.kp.local/"):
+    def room(self, room ="room2@muc.kp.local"):
         self.connection.RegisterDisconnectHandler(self.connection.reconnectAndReauth())
         self.connection.RegisterHandler('message', self.receive)
         self.connection.sendInitPresence()
