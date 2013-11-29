@@ -17,7 +17,7 @@ import pymongo
 
 from time import time
 
-class queue(object):
+class Queue(object):
 
     def __init__(self, collection):
       self.collection = collection
