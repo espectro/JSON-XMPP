@@ -33,7 +33,7 @@ class Queue(object):
         return self.collection.count()
 
 
-    def count(self, query = { "_r": { '$exists': True } }):
+    def count(self, query = {"_r": {'$exists': True }}):
         # By default, the surprising number of reserved tasks in the queue
         return self.collection.find(query).count()
 
@@ -51,8 +51,8 @@ class Queue(object):
         try:
             result = self.collection.find_and_modify(
                 query = {
-                  "_p": {'$lte': priority},
-                  "_r": {'$exists': False}
+                    "_p": {'$lte': priority},
+                    "_r": {'$exists': False}
                 },
                 sort   = {"_p": 1},
                 update = {'$set': {"_r": int(time())}}
@@ -78,13 +78,13 @@ class Queue(object):
 
     def error(self, task, message):
         return self.collection.update(
-            {"_id": task["_id"] },
-            {'$push': { "_e": message } }
+            {"_id": task["_id"]},
+            {'$push': {"_e": message }}
         )
 
 
     def remove(self, task):
-        return self.collection.remove({ "_id": task["_id"] })
+        return self.collection.remove({"_id": task["_id"]})
 
 
     def timeout(self, delay = 120):

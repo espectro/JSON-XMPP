@@ -26,7 +26,6 @@ from mongoqueue  import Queue
 from argparse    import ArgumentParser
 from configobj   import ConfigObj
 from validate    import Validator
-from time import time
 
 SENT_MESSAGE_ID = 0
 
