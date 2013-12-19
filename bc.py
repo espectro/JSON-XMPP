@@ -59,12 +59,14 @@ class JBot(object):
         if self.connection.connect((server, port)) == '':
             self.log.error('Cannot connect to server %s port %d' % (server, port))
             sys.exit(1)
+
         if self.connection.auth(
                 JID.getNode(),
                 self.config["xmpp"]["password"],
                 self.config["xmpp"]["user"]+'-' ) == None:
             self.log.error('Authentication %s failed!' % self.user)
             sys.exit(1)
+
         self.connection.RegisterDisconnectHandler(self.connection.reconnectAndReauth())
         self.connection.RegisterHandler('message', self.receive)
         self.connection.sendInitPresence()
@@ -129,23 +131,12 @@ class JBot(object):
   #     type: 'groupchat'}
   # })
     def send(self, to, message, mtype):
-        global SENT_MESSAGE_ID
-        SENT_MESSAGE_ID += 1
-        template = ("<message from=\"{msg_from}\" \
-                    to=\"{user}@{domain}\" type=\"{type}\" \
-                    id=\"{msg_id}\"><body>{body}</body>\n<html xmlns=\"http://jabber.org/protocol/xhtml-im\"> \
-                    <body xmlns=\"http://www.w3.org/1999/xhtml\">{body}</body></html></message>"
-        )
         self.room(str(to['user']+'@'+to['domain']))
         self.connection.send(xmpp.protocol.Message(
-            node = template.format(
-                msg_from = self.connection.Bind.bound[0], 
-                user = to["user"], 
-                domain = to["domain"],
-                msg_id = int(SENT_MESSAGE_ID), 
-                body = message,
-                type = str(mtype)
-            )
+            to=str(to['user']+'@'+to['domain']),
+            body=message,
+            typ=str(mtype),
+            frm=self.connection.Bind.bound[0]
         ))
 
 
@@ -166,7 +157,6 @@ class JBot(object):
     
 
     def run(self):
-        # self.room()
         while True:
             try:
                 while self.connection.Process(1):
