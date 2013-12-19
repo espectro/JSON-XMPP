@@ -71,6 +71,7 @@ class JBot(object):
         self.connection.RegisterHandler('message', self.receive)
         self.connection.sendInitPresence()
 
+
     def _connect(self, config):
         try:
             client = pymongo.MongoClient( config["host"], config["port"] )
@@ -92,10 +93,17 @@ class JBot(object):
             return uri
         try:
             u = re.search('(.+)@(.+)/(.+)', uri) 
-            result = { "user" : u.group(1), "domain": u.group(2), "ressource": u.group(3) }
+            result = { 
+                "user" : u.group(1),
+                "domain": u.group(2),
+                "ressource": u.group(3)
+            }
         except:
             u = re.search('(.+)@(.+)', uri)
-            result = { "user" : u.group(1), "domain": u.group(2) }
+            result = {
+                "user" : u.group(1),
+                "domain": u.group(2)
+            }
         return result
 
 
@@ -146,14 +154,24 @@ class JBot(object):
             message = out["message"]
             self.log.debug('post message from:%s to:%s' % (message["from"], message["to"]))
             if message["mime"] == "application/json":
-                self.send(self.recipient(message["to"]), json.dumps(message["content"]), message["type"])
+                self.send(self.recipient(
+                    message["to"]),
+                    json.dumps(message["content"]),
+                    message["type"]
+                )
             else:
-                self.send(self.recipient(message["to"]), message["content"].encode('utf-8'), message["type"])
+                self.send(self.recipient(
+                    message["to"]), 
+                    message["content"].encode('utf-8'),
+                    message["type"]
+                )
             self._outbox.remove(out)
 
 
     def room(self, room='room2@muc.kp.local'):
-        self.connection.send(xmpp.Presence(to='%s/%s' % (room, self.config["xmpp"]["user"])))
+        self.connection.send(xmpp.Presence(
+            to='%s/%s' % (room, self.config["xmpp"]["user"]))
+        )
     
 
     def run(self):
@@ -169,13 +187,24 @@ class JBot(object):
 
 def main():
     parser = ArgumentParser('mongo-xmpp-bot')
-    parser.add_argument("-c", "--config", dest='config', 
-        required=True, help="Config is ini file which contains username in mongodb")
-    parser.add_argument("-v", "--verbose", dest='verbose', 
+    parser.add_argument(
+        "-c", "--config",
+        dest='config', 
+        required=True,
+        help="Config is ini file which contains username in mongodb"
+    )
+    parser.add_argument(
+        "-v", "--verbose", dest='verbose', 
         help='Enable debugging on connection',
-        action="store_true")
+        action="store_true"
+    )
     options = parser.parse_args()
-    config = ConfigObj(options.config, configspec=options.config+'.spec', interpolation=False, encoding='UTF8')
+    config = ConfigObj(
+        options.config, 
+        configspec=options.config+'.spec',
+        interpolation=False,
+        encoding='UTF8'
+    )
     validator = Validator()
     result = config.validate(validator)
     if result != True:
