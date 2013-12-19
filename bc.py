@@ -126,6 +126,8 @@ class JBot(object):
                     id=\"{msg_id}\"><body>{body}</body>\n<html xmlns=\"http://jabber.org/protocol/xhtml-im\"> \
                     <body xmlns=\"http://www.w3.org/1999/xhtml\">{body}</body></html></message>"
         )
+        print '#' * 90
+        print mtype
         self.connection.send(xmpp.protocol.Message(
             node = template.format(
                 msg_from = self.connection.Bind.bound[0], 
