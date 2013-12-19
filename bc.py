@@ -168,7 +168,7 @@ class JBot(object):
             self._outbox.remove(out)
 
 
-    def room(self, room='room2@muc.kp.local'):
+    def room(self, room=None):
         self.connection.send(xmpp.Presence(
             to='%s/%s' % (room, self.config["xmpp"]["user"]))
         )
