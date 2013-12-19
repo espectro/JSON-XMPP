@@ -62,11 +62,12 @@ class JBot(object):
         if self.connection.auth(
                 JID.getNode(),
                 self.config["xmpp"]["password"],
-                self.config["xmpp"]["user"]+'-'
-            ) == None:
+                self.config["xmpp"]["user"]+'-' ) == None:
             self.log.error('Authentication %s failed!' % self.user)
             sys.exit(1)
-
+        self.connection.RegisterDisconnectHandler(self.connection.reconnectAndReauth())
+        self.connection.RegisterHandler('message', self.receive)
+        self.connection.sendInitPresence()
 
     def _connect(self, config):
         try:
@@ -115,26 +116,35 @@ class JBot(object):
                     "type"    : message.getType(),
                     "content" : content
                 }
-            })
+            })  
 
 
-    def send(self, to, message):
+  # save({
+  #   _p:233213,
+  #   message:{
+  #     to:'room2@muc.kp.local', 
+  #     from:'pbot1@kp.local/pbot1-',
+  #     content:'Message from bot mongo collection',
+  #     mime:'application/json',
+  #     type: 'groupchat'}
+  # })
+    def send(self, to, message, mtype):
         global SENT_MESSAGE_ID
         SENT_MESSAGE_ID += 1
         template = ("<message from=\"{msg_from}\" \
-                    to=\"{user}@{domain}\" type=\"chat\" \
+                    to=\"{user}@{domain}\" type=\"{type}\" \
                     id=\"{msg_id}\"><body>{body}</body>\n<html xmlns=\"http://jabber.org/protocol/xhtml-im\"> \
                     <body xmlns=\"http://www.w3.org/1999/xhtml\">{body}</body></html></message>"
         )
-        print '#' * 90
-        print mtype
+        self.room(str(to['user']+'@'+to['domain']))
         self.connection.send(xmpp.protocol.Message(
             node = template.format(
                 msg_from = self.connection.Bind.bound[0], 
-                user   = to["user"], 
-                domain = to["domain"], 
+                user = to["user"], 
+                domain = to["domain"],
                 msg_id = int(SENT_MESSAGE_ID), 
-                body   = str(message)
+                body = message,
+                type = str(mtype)
             )
         ))
 
@@ -145,21 +155,18 @@ class JBot(object):
             message = out["message"]
             self.log.debug('post message from:%s to:%s' % (message["from"], message["to"]))
             if message["mime"] == "application/json":
-                self.send(self.recipient(message["to"]), json.dumps(message["content"]))
+                self.send(self.recipient(message["to"]), json.dumps(message["content"]), message["type"])
             else:
-                self.send(self.recipient(message["to"]), message["content"].encode('utf-8'))
+                self.send(self.recipient(message["to"]), message["content"].encode('utf-8'), message["type"])
             self._outbox.remove(out)
 
 
-    def room(self, room ="room2@muc.kp.local"):
-        self.connection.RegisterDisconnectHandler(self.connection.reconnectAndReauth())
-        self.connection.RegisterHandler('message', self.receive)
-        self.connection.sendInitPresence()
-        self.connection.send(xmpp.Presence(to=room))
+    def room(self, room='room2@muc.kp.local'):
+        self.connection.send(xmpp.Presence(to='%s/%s' % (room, self.config["xmpp"]["user"])))
     
 
     def run(self):
-        self.room()
+        # self.room()
         while True:
             try:
                 while self.connection.Process(1):
@@ -168,7 +175,6 @@ class JBot(object):
             except KeyboardInterrupt:
                 self.log.debug('Keyboard interrupt')
                 sys.exit(0)
-
 
 
 def main():
