@@ -69,6 +69,7 @@ class JBot(object):
 
         self.connection.RegisterDisconnectHandler(self.connection.reconnectAndReauth())
         self.connection.RegisterHandler('message', self.receive)
+        self.connection.getRoster()
         self.connection.sendInitPresence()
 
 
@@ -108,6 +109,8 @@ class JBot(object):
 
 
     def receive(self, session, message):
+        return
+
         body = message.getBody()
         if body != None:
             try:
@@ -142,7 +145,7 @@ class JBot(object):
         self.room(str(to['user']+'@'+to['domain']))
         self.connection.send(xmpp.protocol.Message(
             to=str(to['user']+'@'+to['domain']),
-            body=message,
+            body=unicode(message, 'unicode-escape'),
             typ=str(mtype),
             frm=self.connection.Bind.bound[0]
         ))
@@ -162,13 +165,13 @@ class JBot(object):
             else:
                 self.send(self.recipient(
                     message["to"]), 
-                    message["content"].encode('utf-8'),
+                    message["content"],
                     message["type"]
                 )
             self._outbox.remove(out)
 
 
-    def room(self, room=None):
+    def room(self, room, nick=None, password=None):
         self.connection.send(xmpp.Presence(
             to='%s/%s' % (room, self.config["xmpp"]["user"]))
         )
