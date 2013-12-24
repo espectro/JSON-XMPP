@@ -22,11 +22,11 @@ import json
 import xmpp
 import pymongo
 import logging
-from mongoqueue  import Queue
-from argparse    import ArgumentParser
-from configobj   import ConfigObj
-from validate    import Validator
-
+from mongoqueue import Queue
+from argparse import ArgumentParser
+from configobj import ConfigObj
+from validate import Validator
+from suuid import Luhn
 SENT_MESSAGE_ID = 0
 
 class JBot(object):
@@ -37,11 +37,14 @@ class JBot(object):
             datefmt = config['logging']['datetime'],
             filename = config['logging']['filename']
         )
+        self.luhn = Luhn(config['apps']['identity']['salts'])
+        self.auth = self.luhn.make(1)
         self.__dict__.update({
             'log': logging.getLogger('jbot'),
             'store': self._connect(config['mongodb']),
             'config': config,
-            'user': '%s@%s' % (config["xmpp"]["user"], config["xmpp"]["host"])
+            'user': '%s@%s' % (self.auth['uid'], config["xmpp"]["host"]),
+            'token': self.auth['access_token']
         })
         self._init(debug)
 
@@ -62,8 +65,8 @@ class JBot(object):
 
         if self.connection.auth(
                 JID.getNode(),
-                self.config["xmpp"]["password"],
-                self.config["xmpp"]["user"]+'-' ) == None:
+                self.token,
+                self.user + '-' ) == None:
             self.log.error('Authentication %s failed!' % self.user)
             sys.exit(1)
 
@@ -173,7 +176,7 @@ class JBot(object):
 
     def room(self, room, nick=None, password=None):
         self.connection.send(xmpp.Presence(
-            to='%s/%s' % (room, self.config["xmpp"]["user"]))
+            to='%s/%s' % (room, self.auth['uid']))
         )
     
 
