@@ -1,0 +1,7 @@
+{
+    "db" : {
+			"host" : "localhost",
+			"port" : 27001
+		},
+    "user" : "oishi.kuranosuke.yoshikatsu@jabber.ru"
+}

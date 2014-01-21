@@ -14,7 +14,7 @@
 
 
 import pymongo
-from pymongo.errors import OperationFailure
+from pymongo.errors import OperationFailure, AutoReconnect
 from time import time
 
 class Queue(object):
@@ -59,6 +59,8 @@ class Queue(object):
             )
             self.log.debug(result)
         except OperationFailure, e:
+            self.log.debug(e)
+        except AutoReconnect, e:
             self.log.debug(e)
         return result
 

@@ -1,0 +1,23 @@
+[xmpp]
+    server    = first.node.desk.kp.ru
+    port      = 5222
+    host      = kp.local
+    user      = aaleksandrov
+    password  = Utu34BzKYE5cj
+[logging]
+    level    = debug
+    format   = '%(asctime)s %(levelname)-8s %(name)-10s %(message)s'
+    datetime = '%Y-%m-%d %H:%M:%S'
+    filename = /tmp/bc.log
+[apps]
+    [[identity]]
+	salts = AAAAB3NzaC1yc2EAAAABIwAAAQEAxiiz, AR5yDwjuzTIFvtAoY2rBSzv8wOGLu0Ku, Gj7ma6vGWVHLINkZHE6W2Z6QTF3J+LUC, MrZhy9+9CJdw1PV69QBfU7iJ1wtKHjee, ewAZ/gIqHBIsub9kopaghLDup3wKaL6x, bTStNgN8ZRydmAxPNjILofy7EdwDgCEw, EXsS7P8OLmqE7ws5qC+SRlN/TaKHmDCf, 1AInZOw9yINb+JEvNH9umdItdUSQuBNy, A3z763XK0f8NxRpY1t+Qv6pm9kO96cvT, Ex24vfa4FAdj6SdoduSqQ9J8DeaDg8EZ
+
+[mongodb]
+    auth = on
+    host = 10.0.0.30
+    auth_db = admin
+    #port = 27017
+    port = 9999
+    user = root
+    passwd = bctWKuqwWHhN
